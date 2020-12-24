@@ -1,0 +1,65 @@
+service: books
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  stage: dev
+  region: us-east-1
+  environment:
+    DYNAMODB_TABLE: ${self:service}-${opt:stage, self:provider.stage}
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+      Resource: "arn:aws:dynamodb:${opt:region, self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE}"
+
+functions:
+  create:
+    handler: api/create.create
+    memorySize: 128
+    description: Create a book
+    events:
+      - http:
+          path: books
+          method: post
+          cors: true
+  get:
+    handler: api/get.get
+    memorySize: 128
+    description: Get book by ID
+    events:
+      - http:
+          path: books/{id}
+          method: get
+          cors: true
+  list:
+    handler: api/list.list
+    memorySize: 128
+    description: List all books
+    events:
+      - http:
+          path: books
+          method: get
+          cors: true
+
+resources:
+  Resources:
+    BooksDynamoDbTable:
+      Type: 'AWS::DynamoDB::Table'
+      DeletionPolicy: Retain
+      Properties:
+        AttributeDefinitions:
+          -
+            AttributeName: "id"
+            AttributeType: "S"
+        KeySchema:
+          -
+            AttributeName: "id"
+            KeyType: "HASH"
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+        TableName: "${self:provider.environment.DYNAMODB_TABLE}"
